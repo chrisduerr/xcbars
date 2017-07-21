@@ -69,7 +69,7 @@ impl Stream for PipeStream {
         let mut line_received = None;
         let mut command_done = false;
         let mut sleep_done = false;
-        
+
         match self.state {
             PipeStreamState::Command(ref mut lines) => {
                 match lines.poll() {
@@ -77,21 +77,21 @@ impl Stream for PipeStream {
                     Err(e) => return Err(e.into()),
                     Ok(Async::Ready(Some(line))) => {
                         line_received = Some(line);
-                    },
+                    }
                     Ok(Async::Ready(None)) => {
                         command_done = true;
-                    },
+                    }
                 }
-            },
+            }
             PipeStreamState::Sleep(ref mut future) => {
                 match future.poll() {
                     Ok(Async::NotReady) => return Ok(Async::NotReady),
                     Err(e) => return Err(e.into()),
                     Ok(Async::Ready(_)) => {
                         sleep_done = true;
-                    },
+                    }
                 }
-            },
+            }
         }
 
         if command_done {

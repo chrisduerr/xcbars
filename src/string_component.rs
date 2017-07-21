@@ -12,9 +12,9 @@ use std::error::Error as StdError;
 use std::marker::PhantomData;
 
 pub trait StringComponent: Sized {
-    type Stream: Stream<Item=String, Error=Self::Error>;
+    type Stream: Stream<Item = String, Error = Self::Error>;
     type Error: StdError;
-    
+
     fn create(
         config: Self,
         bar_info: Rc<BarInfo>,
@@ -29,13 +29,15 @@ pub struct StringComponentStateInfo<C> {
 }
 
 impl<C> ComponentConfig for C
-    where C: StringComponent
+where
+    C: StringComponent,
 {
     type State = StringComponentStateInfo<C>;
 }
 
 impl<C> ComponentState for StringComponentStateInfo<C>
-    where C: StringComponent,
+where
+    C: StringComponent,
 {
     type Config = C;
     type Error = C::Error;

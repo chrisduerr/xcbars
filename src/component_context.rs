@@ -58,12 +58,12 @@ impl ComponentContext {
     pub fn update_width(&mut self, mut width: u16) -> Result<()> {
         if let Some(ref mut gctx) = self.graphical_context {
             if width > gctx.width {
-                width = (width*13)/10;
-            } else if width > (gctx.width*8)/10 {
+                width = (width * 13) / 10;
+            } else if width > (gctx.width * 8) / 10 {
                 return Ok(());
             }
         } else {
-            width = (width*13)/10;
+            width = (width * 13) / 10;
         }
 
         let pixmap = self.create_pixmap(width)?;

@@ -5,8 +5,9 @@ use futures::Stream;
 use pango::FontDescription;
 use tokio_core::reactor::{Core, Handle};
 use component_context::ComponentContext;
-use component::{Slot, ComponentUpdate, ComponentConfig, ComponentConfigExt, ComponentContainer, ComponentContainerExt, ComponentState};
-use xcb::{randr, self, Visualtype, Screen, Window, Rectangle, Connection};
+use component::{Slot, ComponentUpdate, ComponentConfig, ComponentConfigExt, ComponentContainer,
+                ComponentContainerExt, ComponentState};
+use xcb::{self, randr, Visualtype, Screen, Window, Rectangle, Connection};
 
 #[derive(Clone)]
 /// Defines a color by it's red, green and blue components.
@@ -116,7 +117,8 @@ impl<'a> BarBuilder<'a> {
         C: ComponentConfig + 'static,
         <<C as ComponentConfig>::State as ComponentState>::Error: Send,
     {
-        self.items.push((slot, Box::new(ComponentContainer::new(component))));
+        self.items
+            .push((slot, Box::new(ComponentContainer::new(component))));
         self
     }
 
@@ -200,7 +202,7 @@ impl<'a> BarBuilder<'a> {
                 &self.window_title,
             )?;
             visualtype = find_visualtype(&screen).unwrap();
-            
+
             // Create xcb graphics context for drawin te background
             try_xcb!(
                 xcb::create_gc_checked,
@@ -210,7 +212,7 @@ impl<'a> BarBuilder<'a> {
                 screen.root(),
                 &[
                     (xcb::GC_FOREGROUND, self.bg_color.as_u32()),
-                    (xcb::GC_GRAPHICS_EXPOSURES, 0),
+                    (xcb::GC_GRAPHICS_EXPOSURES, 0)
                 ]
             );
         }
@@ -248,7 +250,7 @@ impl<'a> BarBuilder<'a> {
             let context = ComponentContext::new(xcb_ctx.clone(), geometry.height());
 
             let state = config.create(info.clone(), &handle)?;
-            
+
             components.push((context, state));
         }
 
@@ -338,9 +340,9 @@ fn get_screen_info<'s>(
     // Load screen resources of the root window
     // Return result on error
     let res_cookie = randr::get_screen_resources(conn, screen.root());
-    let res_reply = res_cookie.get_reply().map_err(
-        |_| "Unable to get screen resources",
-    )?;
+    let res_reply = res_cookie
+        .get_reply()
+        .map_err(|_| "Unable to get screen resources")?;
 
     // Get all crtcs from the reply
     let crtcs = res_reply.crtcs();
@@ -384,23 +386,23 @@ fn get_primary_screen_info<'s>(
 ) -> Result<xcb::Reply<xcb::ffi::randr::xcb_randr_get_crtc_info_reply_t>> {
     // Load primary output
     let output_cookie = randr::get_output_primary(conn, screen.root());
-    let output_reply = output_cookie.get_reply().map_err(
-        |_| "Unable to get primary output.",
-    )?;
+    let output_reply = output_cookie
+        .get_reply()
+        .map_err(|_| "Unable to get primary output.")?;
     let output = output_reply.output();
 
     // Get crtc of primary output
     let output_info_cookie = randr::get_output_info(conn, output, 0);
-    let output_info_reply = output_info_cookie.get_reply().map_err(
-        |_| "Unable to get info about primary output",
-    )?;
+    let output_info_reply = output_info_cookie
+        .get_reply()
+        .map_err(|_| "Unable to get info about primary output")?;
     let crtc = output_info_reply.crtc();
 
     // Get info of primary output's crtc
     let crtc_info_cookie = randr::get_crtc_info(conn, crtc, 0);
-    Ok(crtc_info_cookie.get_reply().map_err(
-        |_| "Unable to get crtc from primary output",
-    )?)
+    Ok(crtc_info_cookie
+        .get_reply()
+        .map_err(|_| "Unable to get crtc from primary output")?)
 }
 
 /// Convinience macro for setting EWMH properites.
