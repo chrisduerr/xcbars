@@ -1,11 +1,10 @@
 use futures::{Future, Stream};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use tokio_timer::Timer;
 use tokio_core::reactor::Handle;
 use component::Component;
 use error::{Error, Result};
-use std::time::Duration;
-use utils;
+use std::time::{Instant, Duration};
 
 #[derive(Clone, PartialEq, Copy)]
 pub enum Scale {
@@ -35,10 +34,13 @@ pub struct NetworkUsage {
     pub percision: u8,
     pub refresh_frequency: Duration,
     pub sample_duration: Duration,
+    pub buffer: Vec<u64>,
+    pub buffer_size: usize,
 }
 
 impl Default for NetworkUsage {
     fn default() -> NetworkUsage {
+        let buffer_size = 5;
         NetworkUsage {
             interface: "eth0".to_string(),
             direction: Direction::Incoming,
@@ -46,6 +48,8 @@ impl Default for NetworkUsage {
             percision: 3,
             refresh_frequency: Duration::from_secs(10),
             sample_duration: Duration::from_secs(1),
+            buffer: Vec::with_capacity(buffer_size),
+            buffer_size,
         }
     }
 }
@@ -100,36 +104,46 @@ impl Component for NetworkUsage {
         Ok(())
     }
 
+    // type Stream = Box<Stream<Item = String, Error = Error>>;
     fn stream(self, _: Handle) -> Self::Stream {
-        let conf = Arc::new(self);
+        let timer = Timer::default();
+        let conf = Arc::new(Mutex::new(self));
 
-        utils::LoopFn::new(move || {
-            let timer = Timer::default();
-            let conf = conf.clone();
+        timer
+            .interval_at(Instant::now(), Duration::from_secs(1))
+            .and_then(move |()| {
+                let conf = conf.clone();
+                let conf2 = conf.clone();
+                let first = {
+                    let lock = conf.lock().unwrap();
+                    get_bytes(&lock.interface, lock.direction).unwrap().unwrap()
+                };
+                timer
+                    .sleep(Duration::from_secs(1))
+                    .and_then(move |()| {
+                        // Get throughput by getting second reading and checking diff
+                        let mut lock = conf.lock().unwrap();
+                        let second = get_bytes(&lock.interface, lock.direction).unwrap().unwrap();
+                        let per_second = (second - first) / lock.sample_duration.as_secs();
 
-            timer.sleep(conf.refresh_frequency)
-                .and_then(move |()| {
-                    let conf = conf.clone();
-                    let conf2 = conf.clone();
+                        // Add current throughput to buffer
+                        lock.buffer.insert(0, per_second);
+                        while lock.buffer.len() > lock.buffer_size {
+                            let _ = lock.buffer.pop();
+                        }
 
-                    let first = get_bytes(conf.interface.as_str(), conf.direction)
-                        .unwrap().unwrap();
-
-                    timer.sleep(conf.sample_duration)
-                        .and_then(move |()| {
-                            let second = get_bytes(conf.interface.as_str(), conf.direction)
-                                .unwrap().unwrap();
-                            let per_second = (second-first)/conf.sample_duration.as_secs();
-                            Ok(per_second)
-                        })
-                        .map(move |speed| {
-                            let (num, power) = get_number_scale(speed, conf2.scale);
-                            let x = 10f64.powi((conf2.percision-1) as i32);
-                            let num = (num*x).round() / x;
-                            format!("{} {}", num, get_prefix(conf2.scale, power))
-                        })
-                })
-        }).map_err(|_| "timer error".into())
+                        // Get average from buffer
+                        Ok(lock.buffer.iter().sum::<u64>() / lock.buffer.len() as u64)
+                    })
+                    .map(move |speed| {
+                        let lock = conf2.lock().unwrap();
+                        let (num, power) = get_number_scale(speed, lock.scale);
+                        let x = 10f64.powi((lock.percision-1) as i32);
+                        let num = (num*x).round() / x;
+                        format!("{} {}", num, get_prefix(lock.scale, power))
+                    })
+            })
+            .map_err(|_| "timer error".into())
             .boxed()
     }
 }
