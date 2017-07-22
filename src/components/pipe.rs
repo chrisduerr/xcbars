@@ -5,8 +5,7 @@ use std::process::{Stdio, Command};
 use tokio_process::{ChildStdout, CommandExt};
 use futures::{Stream, Future};
 use tokio_timer::Timer;
-use std::time::Duration;
-use utils::LoopFn;
+use std::time::{Duration, Instant};
 use error::Error;
 
 pub struct Pipe {
@@ -43,23 +42,13 @@ impl Component for Pipe {
 
     fn stream(self, handle: Handle) -> Self::Stream {
         if let Some(refresh_rate) = self.refresh_rate {
+            let timer = Timer::default();
             Box::new(
-                LoopFn::new(move || {
-                    let timer = Timer::default();
-                    Ok::<_, Error>(
-                        ::tokio_io::io::lines(self.reader(&handle))
-                            .map(|s| Some(s))
-                            .chain(
-                                timer
-                                    .sleep(refresh_rate)
-                                    .into_stream()
-                                    .map(|_| None)
-                                    .from_err(),
-                            )
-                            .map_err(|e| Error::from(e)),
-                    )
-                }).flatten()
-                    .filter_map(|s| s),
+                timer
+                    .interval_at(Instant::now(), refresh_rate)
+                    .and_then(move |_| Ok(::tokio_io::io::lines(self.reader(&handle))))
+                    .flatten()
+                    .map_err(Error::from),
             )
         } else {
             Box::new(::tokio_io::io::lines(self.reader(&handle)).from_err())

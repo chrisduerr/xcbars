@@ -1,8 +1,5 @@
-mod stream_loop_fn;
 #[macro_use]
 mod composite;
-
-pub use self::stream_loop_fn::LoopFn;
 
 macro_rules! try_xcb {
     ($func:expr, $error:expr, $($args:expr),*) => {
