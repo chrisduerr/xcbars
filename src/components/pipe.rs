@@ -29,7 +29,7 @@ impl Pipe {
         let mut cmd = Command::new(self.command.as_str());
         cmd.args(self.args.as_slice());
         cmd.stdin(Stdio::inherit()).stdout(Stdio::piped());
-        let mut child = cmd.spawn_async(&handle).unwrap();
+        let mut child = cmd.spawn_async(handle).unwrap();
         let stdout = child.stdout().take().unwrap();
         handle.spawn(child.map(|_| ()).map_err(|_| ()));
         BufReader::new(stdout)

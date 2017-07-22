@@ -26,8 +26,7 @@ impl WindowTitle {
     // Get the title of the window that currently is focused
     fn get_window_title(&self) -> Result<String> {
         // Connect to Xorg
-        let (conn, screen_num) = Connection::connect(None)
-            .map_err(|e| ErrorKind::XcbConnection(e))?;
+        let (conn, screen_num) = Connection::connect(None).map_err(ErrorKind::XcbConnection)?;
 
         // Get the screen for accessing the root window later
         let setup = conn.get_setup();
@@ -93,7 +92,7 @@ impl Component for WindowTitle {
         let stream = xcb_event_stream::XcbEventStream::new(conn, &handle)
             .unwrap()
             .filter(move |event| unsafe {
-                let property_event: &xcb::PropertyNotifyEvent = xcb::cast_event(&event);
+                let property_event: &xcb::PropertyNotifyEvent = xcb::cast_event(event);
                 let property_atom = property_event.atom();
                 property_atom == active_window
             })
@@ -110,8 +109,7 @@ impl Component for WindowTitle {
     //
     // If there is a problem with X or the Atoms are not supported, this will fail.
     fn init(&mut self) -> Result<()> {
-        let (conn, _) = Connection::connect(None)
-            .map_err(|e| ErrorKind::XcbConnection(e))?;
+        let (conn, _) = Connection::connect(None).map_err(ErrorKind::XcbConnection)?;
 
         let active_window = xcb::intern_atom(&conn, true, "_NET_ACTIVE_WINDOW")
             .get_reply()?

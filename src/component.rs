@@ -1,3 +1,5 @@
+#![allow(unknown_lints, boxed_local)]
+
 use futures::Stream;
 use error::*;
 use std::result::Result as StdResult;
@@ -46,7 +48,9 @@ pub struct SubComponent(pub Box<ComponentCreator>);
 
 impl<'s> From<&'s str> for SubComponent {
     fn from(s: &'s str) -> SubComponent {
-        SubComponent(Box::new(Text { text: s.to_string() }))
+        SubComponent(Box::new(Text {
+            text: s.to_string(),
+        }))
     }
 }
 
